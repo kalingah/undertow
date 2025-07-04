@@ -73,7 +73,6 @@ public class AjpRequestParser {
     private final boolean allowEncodedSlash;
     private final int maxParameters;
     private final int maxHeaders;
-    private StringBuilder decodeBuffer;
     private final boolean allowUnescapedCharactersInUrl;
 
     private static final HttpString[] HTTP_HEADERS;
@@ -176,6 +175,8 @@ public class AjpRequestParser {
         ATTRIBUTES[12] = SECRET;
         ATTRIBUTES[13] = STORED_METHOD;
     }
+
+    private StringBuilder decodeBuffer;
 
     public AjpRequestParser(String encoding, boolean doDecode, int maxParameters, int maxHeaders, boolean allowEncodedSlash, boolean allowUnescapedCharactersInUrl) {
         this.encoding = encoding;
@@ -475,9 +476,7 @@ public class AjpRequestParser {
     private String decode(String url, final boolean containsUrlCharacters) throws UnsupportedEncodingException {
         if (doDecode && containsUrlCharacters) {
             try {
-                if(decodeBuffer == null) {
-                    decodeBuffer = new StringBuilder();
-                }
+                decodeBuffer = new StringBuilder();
                 return URLUtils.decode(url, this.encoding, allowEncodedSlash, false, decodeBuffer);
             } catch (Exception e) {
                 throw UndertowMessages.MESSAGES.failedToDecodeURL(url, encoding, e);

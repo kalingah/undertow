@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -125,6 +127,44 @@ public class AjpParsingUnitTestCase {
         Assert.assertEquals("/한글이름", result.getRequestPath());
         Assert.assertEquals("/한글이름", result.getRequestURI());
         Assert.assertEquals("param=한글이름", result.getQueryString());
+    }
+
+    @Test
+    public void testCharsetHandlingConcurrent() throws Exception {
+        List<Thread> threads = new ArrayList<>();
+
+        // Create threads, don't start yet
+        for (int i = 0; i < 10; i++) {
+            final String path = "한글이름" + i;
+            Thread t = new Thread(() -> {
+                try {
+                    extracted(path);
+                } catch (IOException | BadRequestException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            threads.add(t);
+        }
+
+        // Start all threads at once
+        for (Thread t : threads) {
+            t.start();
+        }
+        for (Thread t : threads) {
+            t.join();
+        }
+    }
+
+    private void extracted(String path) throws IOException, BadRequestException {
+        ByteBuffer data = createAjpRequest(("/" + path).getBytes(StandardCharsets.UTF_8),
+                ("param=" + path).getBytes(StandardCharsets.UTF_8));
+        HttpServerExchange result = new HttpServerExchange(null);
+        AjpRequestParseState state = new AjpRequestParseState();
+        AJP_REQUEST_PARSER.parse(data, state, result);
+        Assert.assertFalse(state.badRequest);
+        Assert.assertEquals("/" + path, result.getRequestPath());
+        Assert.assertEquals("/" + path, result.getRequestURI());
+        Assert.assertEquals("param=" + path, result.getQueryString());
     }
 
     @Test
